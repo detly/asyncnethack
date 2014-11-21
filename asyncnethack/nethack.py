@@ -11,7 +11,7 @@ import select
 import sys
 import tempfile
 
-import ansiterm
+from . import ansiterm
 
 
 class CMD:
@@ -213,13 +213,13 @@ class NethackBot:
         xmax = x + radius + 1
         hood = self.glyphs[slice(max(0, ymin), min(ymax, rows - 3)),
                            slice(max(0, xmin), min(xmax, cols))]
-        for _ in xrange(abs(min(0, ymin))):
+        for _ in range(abs(min(0, ymin))):
             hood = numpy.hstack(numpy.zeros(), hood)
-        for _ in xrange(abs(min(0, xmin))):
+        for _ in range(abs(min(0, xmin))):
             hood = numpy.vstack(numpy.zeros(), hood)
-        for _ in xrange(max(0, ymax - cols)):
+        for _ in range(max(0, ymax - cols)):
             hood = numpy.hstack(hood, numpy.zeros())
-        for _ in xrange(max(0, xmax - (rows - 3))):
+        for _ in range(max(0, xmax - (rows - 3))):
             hood = numpy.vstack(hood, numpy.zeros())
         assert hood.shape == (2 * radius + 1, 2 * radius + 1), \
             '%s incorrect shape: %s' % (hood.shape, hood)

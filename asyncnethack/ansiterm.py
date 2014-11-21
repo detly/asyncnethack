@@ -7,7 +7,7 @@ class Tile:
     def __init__(self):
         self.color = self.glyph = None
         self.reset()
-    
+
     def reset(self):
         """Resets the tile to a white-on-black space"""
         self.color = {
@@ -32,7 +32,7 @@ class Ansiterm:
         self.rows = rows
         self.cols = cols
         self.strict = strict
-        self.tiles = [Tile() for _ in xrange(rows * cols)]
+        self.tiles = [Tile() for _ in range(rows * cols)]
         self.cursor = {
             'x': 0,
             'y': 0,
@@ -116,7 +116,7 @@ class Ansiterm:
             else:
                 numbers = [0]
         else:
-            numbers = map(int, args.split(';'))
+            numbers = [int(arg) for arg in args.split(';')]
 
         return (char, numbers), input[match.end():]
 
@@ -153,7 +153,7 @@ class Ansiterm:
             else:
                 raise Exception('Unknown argument for J parameter: '
                                 '%s (input=%r)' % (numbers, input[:20]))
-            for i in xrange(*range_):
+            for i in range(*range_):
                 self.tiles[i].reset()
         # Clears (parts of) the line
         elif char == 'K':
@@ -169,7 +169,7 @@ class Ansiterm:
             else:
                 raise Exception('Unknown argument for K parameter: '
                                 '%s (input=%r)' % (numbers, input[:20]))
-            for i in xrange(*range_):
+            for i in range(*range_):
                 self.tiles[i].reset()
         # Move cursor up
         elif char == 'A':
