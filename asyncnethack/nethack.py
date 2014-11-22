@@ -11,7 +11,7 @@ import select
 import sys
 import tempfile
 
-from . import ansiterm
+from asyncnethack import ansiterm
 
 
 class CMD:
@@ -46,6 +46,7 @@ class CMD:
     QUIVER = 'Q'
     READ = 'r'
     REMOVE = 'R'
+    SAVE = 'S'
     SEARCH = 's'
     THROW = 't'
     TAKEOFF = 'T'
@@ -73,6 +74,7 @@ class CMD:
         SIT = '#sit'
         TURN = '#turn'
         WIPE = '#wipe'
+        ABANDON = '#quit'
 
 
 class InventoryItem:
@@ -191,7 +193,7 @@ class NethackBot:
         opts.update(kwargs)
 
         handle = tempfile.NamedTemporaryFile()
-        handle.write(self.OPTIONS % opts)
+        handle.write((self.OPTIONS % opts).encode('ascii'))
         handle.flush()
 
         os.environ['NETHACKOPTIONS'] = '@' + handle.name
@@ -203,27 +205,6 @@ class NethackBot:
 
     def choose_answer(self):
         raise NotImplementedError
-
-    def neighborhood(self, radius=3):
-        rows, cols = self.glyphs.shape
-        y, x = self.cursor
-        ymin = y - radius
-        ymax = y + radius + 1
-        xmin = x - radius
-        xmax = x + radius + 1
-        hood = self.glyphs[slice(max(0, ymin), min(ymax, rows - 3)),
-                           slice(max(0, xmin), min(xmax, cols))]
-        for _ in range(abs(min(0, ymin))):
-            hood = numpy.hstack(numpy.zeros(), hood)
-        for _ in range(abs(min(0, xmin))):
-            hood = numpy.vstack(numpy.zeros(), hood)
-        for _ in range(max(0, ymax - cols)):
-            hood = numpy.hstack(hood, numpy.zeros())
-        for _ in range(max(0, xmax - (rows - 3))):
-            hood = numpy.vstack(hood, numpy.zeros())
-        assert hood.shape == (2 * radius + 1, 2 * radius + 1), \
-            '%s incorrect shape: %s' % (hood.shape, hood)
-        return hood
 
     def _parse_inventory(self):
         found_inventory = False
@@ -254,8 +235,6 @@ class NethackBot:
         self.cursor = (self._term.cursor['y'], self._term.cursor['x'])
 
         logging.info('current map:\n%s', '\n'.join(''.join(chr(c) for c in r) for r in self.glyphs))
-        logging.warn('current neighborhood:\n%s', '\n'.join(''.join(chr(c) for c in r)
-                                                            for r in self.neighborhood(3)))
 
         # parse messages from the first line on the screen.
         l = ''.join(chr(c) for c in self.glyphs[0])
@@ -299,7 +278,7 @@ class NethackBot:
             logging.warn('parsed stats: %s', ', '.join('%s: %s' % (k, self.stats[k]) for k in sorted(self.stats)))
 
     def _observe(self, raw):
-        self._raw = re.sub(r'\x1b\[\?\d+h', '', raw)
+        self._raw = re.sub(r'\x1b\[\?\d+h', '', raw.decode('ascii'))
         if not self._raw:
             return
 
@@ -330,21 +309,32 @@ class NethackBot:
         else:
             self.command = self.choose_action()
         logging.warn('sending command "%s"', self.command)
-        return self.command
+        return self.command.encode('ascii')
 
 
 class RandomBot(NethackBot):
+
+    def __init__(self):
+        self.ttl = 50
+
     def choose_action(self):
-        return random.choice([CMD.DIR.N, CMD.DIR.NE, CMD.DIR.E, CMD.DIR.SE,
+        if self.ttl:
+            move = random.choice([CMD.DIR.N, CMD.DIR.NE, CMD.DIR.E, CMD.DIR.SE,
                               CMD.DIR.S, CMD.DIR.SW, CMD.DIR.W, CMD.DIR.NW,
                               ])
+        else:
+            move = CMD.SPECIAL.ABANDON
+
+        self.ttl -= 1
+
+        return move
 
 
 # drain all available bytes from the given file descriptor, until a complete
 # timeout goes by with no new data.
 def _drain(fd, timeout=0.3):
     more, _, _ = select.select([fd], [], [], timeout)
-    buf = ''
+    buf = b''
     while more:
         buf += os.read(fd, 1024)
         more, _, _ = select.select([fd], [], [], timeout)
